@@ -137,11 +137,16 @@ export class UsersService {
   /**
    * Record failed login attempt and potentially lock account
    */
-  async recordFailedLogin(id: string): Promise<{ locked: boolean; lockedUntil?: Date }> {
+  async recordFailedLogin(
+    id: string,
+  ): Promise<{ locked: boolean; lockedUntil?: Date }> {
     const user = await this.findByIdOrFail(id);
     const attempts = user.failedLoginAttempts + 1;
     const threshold = parseInt(process.env.LOCKOUT_THRESHOLD || '5', 10);
-    const baseDuration = parseInt(process.env.LOCKOUT_DURATION_MINUTES || '15', 10);
+    const baseDuration = parseInt(
+      process.env.LOCKOUT_DURATION_MINUTES || '15',
+      10,
+    );
 
     let lockedUntil: Date | null = null;
     let locked = false;
@@ -203,7 +208,11 @@ export class UsersService {
   /**
    * Set password reset token
    */
-  async setPasswordResetToken(id: string, token: string, expiresAt: Date): Promise<void> {
+  async setPasswordResetToken(
+    id: string,
+    token: string,
+    expiresAt: Date,
+  ): Promise<void> {
     await this.prisma.user.update({
       where: { id },
       data: {
@@ -243,7 +252,8 @@ export class UsersService {
    * Get user profile (safe fields only)
    */
   sanitizeUser(user: User): Partial<User> {
-    const { passwordHash, emailVerifyToken, passwordResetToken, ...safe } = user;
+    const { passwordHash, emailVerifyToken, passwordResetToken, ...safe } =
+      user;
     return safe;
   }
 }

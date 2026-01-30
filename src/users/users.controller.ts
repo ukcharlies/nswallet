@@ -16,7 +16,8 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User, Role } from '../../generated/prisma';
+import { Role } from '@prisma/client';
+import type { User } from '@prisma/client';
 
 /**
  * UsersController - User profile and management endpoints
