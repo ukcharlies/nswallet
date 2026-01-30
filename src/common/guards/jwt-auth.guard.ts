@@ -9,7 +9,7 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 /**
  * JwtAuthGuard - Protects routes requiring authentication
- * 
+ *
  * Features:
  * - Automatically validates JWT access tokens
  * - Respects @Public() decorator for public routes

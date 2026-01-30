@@ -24,7 +24,7 @@ export interface AuditMetadata {
 
 /**
  * Decorator to mark a method for auditing
- * 
+ *
  * Usage:
  * @Audit({ entity: 'Wallet', action: AuditAction.CREATE })
  * @Post()
@@ -39,7 +39,7 @@ export function Audit(metadata: AuditMetadata) {
 
 /**
  * AuditInterceptor - Automatically creates audit log entries for marked methods
- * 
+ *
  * Features:
  * - Records who (user), what (entity, action), when (timestamp)
  * - Captures IP address and user agent

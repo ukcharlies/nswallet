@@ -1,11 +1,16 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Role } from '../../../generated/prisma';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 
 /**
  * RolesGuard - Restricts access based on user roles
- * 
+ *
  * Usage with @Roles() decorator:
  * @UseGuards(JwtAuthGuard, RolesGuard)
  * @Roles(Role.ADMIN)
