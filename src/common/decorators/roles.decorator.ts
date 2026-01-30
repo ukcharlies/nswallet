@@ -5,7 +5,7 @@ export const ROLES_KEY = 'roles';
 
 /**
  * Roles decorator - Restricts access to users with specific roles
- * 
+ *
  * Usage:
  * @Roles(Role.ADMIN)
  * @Get('admin/users')

@@ -11,7 +11,7 @@ import { Prisma } from '../../../generated/prisma';
 
 /**
  * Global exception filter - Catches all exceptions and formats consistent error responses
- * 
+ *
  * Features:
  * - Consistent error response format
  * - Prisma-specific error handling

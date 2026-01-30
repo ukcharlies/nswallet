@@ -3,13 +3,13 @@ import { User } from '../../../generated/prisma';
 
 /**
  * CurrentUser decorator - Extracts the authenticated user from the request
- * 
+ *
  * Usage:
  * @Get('profile')
  * getProfile(@CurrentUser() user: User) {
  *   return user;
  * }
- * 
+ *
  * @Get('profile')
  * getEmail(@CurrentUser('email') email: string) {
  *   return email;
