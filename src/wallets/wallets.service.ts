@@ -166,8 +166,8 @@ export class WalletsService {
           walletId: id,
           type: TransactionType.CREDIT,
           amount,
-          balanceBefore,
-          balanceAfter,
+          balanceBefore: balanceBefore.toString(),
+          balanceAfter: balanceAfter.toString(),
           reference,
           description: dto.description,
           metadata: dto.metadata,
@@ -268,8 +268,8 @@ export class WalletsService {
           walletId: id,
           type: TransactionType.DEBIT,
           amount,
-          balanceBefore,
-          balanceAfter,
+          balanceBefore: balanceBefore.toString(),
+          balanceAfter: balanceAfter.toString(),
           reference,
           description: dto.description,
           metadata: dto.metadata,
@@ -487,10 +487,10 @@ export class WalletsService {
         walletId: fromWalletId,
         type: TransactionType.DEBIT,
         amount: transferAmount,
-        balanceBefore: fromWallet.balance,
-        balanceAfter: new Decimal(fromWallet.balance.toString()).minus(
-          transferAmount,
-        ),
+        balanceBefore: fromWallet.balance.toString(),
+        balanceAfter: new Decimal(fromWallet.balance.toString())
+          .minus(transferAmount)
+          .toString(),
         reference: `${reference}-OUT`,
         description: description || `Transfer to wallet ${toWalletId}`,
         metadata: { toWalletId },
@@ -510,10 +510,10 @@ export class WalletsService {
         walletId: toWalletId,
         type: TransactionType.CREDIT,
         amount: transferAmount,
-        balanceBefore: toWallet.balance,
-        balanceAfter: new Decimal(toWallet.balance.toString()).plus(
-          transferAmount,
-        ),
+        balanceBefore: toWallet.balance.toString(),
+        balanceAfter: new Decimal(toWallet.balance.toString())
+          .plus(transferAmount)
+          .toString(),
         reference: `${reference}-IN`,
         description: description || `Transfer from wallet ${fromWalletId}`,
         metadata: { fromWalletId },
