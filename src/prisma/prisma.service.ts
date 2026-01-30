@@ -1,9 +1,14 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
-import { PrismaClient, Prisma } from '../../generated/prisma';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 /**
  * PrismaService - Database client wrapper with lifecycle management
- * 
+ *
  * Features:
  * - Automatic connection management
  * - Query logging in development
@@ -11,19 +16,23 @@ import { PrismaClient, Prisma } from '../../generated/prisma';
  * - Soft delete middleware (filters deleted records by default)
  */
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
     super({
-      log: process.env.NODE_ENV === 'development' 
-        ? [
-            { emit: 'event', level: 'query' },
-            { emit: 'stdout', level: 'info' },
-            { emit: 'stdout', level: 'warn' },
-            { emit: 'stdout', level: 'error' },
-          ]
-        : ['error'],
+      log:
+        process.env.NODE_ENV === 'development'
+          ? [
+              { emit: 'event', level: 'query' },
+              { emit: 'stdout', level: 'info' },
+              { emit: 'stdout', level: 'warn' },
+              { emit: 'stdout', level: 'error' },
+            ]
+          : ['error'],
     });
   }
 
@@ -58,7 +67,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     const softDeleteModels = ['User', 'Wallet'];
 
     // Filter out soft-deleted records on find operations
-    this.$use(async (params, next) => {
+    (this as any).$use(async (params, next) => {
       if (softDeleteModels.includes(params.model || '')) {
         if (params.action === 'findUnique' || params.action === 'findFirst') {
           // Change to findFirst to add deletedAt filter
@@ -86,7 +95,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     });
 
     // Convert delete to soft delete
-    this.$use(async (params, next) => {
+    (this as any).$use(async (params, next) => {
       if (softDeleteModels.includes(params.model || '')) {
         if (params.action === 'delete') {
           params.action = 'update';
