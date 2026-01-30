@@ -1,15 +1,224 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// NSWallet - Secure Wallet System Schema
+// Banking-grade security with full audit trail
+// Run migrations: npx prisma migrate dev --name init
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  LOGIN_FAILED
+}
+
+// ============================================
+// USER MODEL
+// ============================================
+
+model User {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  passwordHash        String?   // Null for OAuth-only users
+  name                String?
+  roles               Role[]    @default([USER])
+  
+  // OAuth fields
+  googleId            String?   @unique
+  
+  // Email verification
+  isEmailVerified     Boolean   @default(false)
+  emailVerifyToken    String?
+  emailVerifyExpires  DateTime?
+  
+  // Password reset
+  passwordResetToken  String?
+  passwordResetExpires DateTime?
+  
+  // Account lockout (brute-force protection)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  lastLoginIp         String?
+  
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime? // Soft delete
+  
+  // Relations
+  wallets             Wallet[]
+  refreshTokens       RefreshToken[]
+  auditLogs           AuditLog[]     @relation("AuditActor")
+  transactions        Transaction[]  @relation("TransactionPerformer")
+
+  @@index([email])
+  @@index([googleId])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+// ============================================
+// WALLET MODEL
+// ============================================
+
+model Wallet {
+  id          String    @id @default(uuid())
+  name        String
+  currency    String    @db.VarChar(3) // ISO 4217 currency code
+  balance     Decimal   @default(0) @db.Decimal(19, 4) // High precision for financial data
+  
+  // Optimistic concurrency control
+  version     Int       @default(0)
+  
+  // Ownership
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime? // Soft delete
+  
+  // Relations
+  transactions Transaction[]
+
+  @@unique([userId, name, currency]) // User can't have duplicate wallet names per currency
+  @@index([userId])
+  @@index([currency])
+  @@index([deletedAt])
+  @@map("wallets")
+}
+
+// ============================================
+// TRANSACTION MODEL
+// ============================================
+
+model Transaction {
+  id              String          @id @default(uuid())
+  
+  // Wallet reference
+  walletId        String
+  wallet          Wallet          @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  
+  // Transaction details
+  type            TransactionType
+  amount          Decimal         @db.Decimal(19, 4)
+  balanceBefore   Decimal         @db.Decimal(19, 4)
+  balanceAfter    Decimal         @db.Decimal(19, 4)
+  
+  // Reference & metadata for traceability
+  reference       String          @unique // Idempotency key / external reference
+  description     String?
+  metadata        Json?           // Flexible JSON for additional data
+  
+  // Who performed this transaction
+  performedByUserId String
+  performedBy       User          @relation("TransactionPerformer", fields: [performedByUserId], references: [id])
+  
+  // Timestamps
+  createdAt       DateTime        @default(now())
+
+  @@index([walletId])
+  @@index([reference])
+  @@index([performedByUserId])
+  @@index([createdAt])
+  @@index([type])
+  @@map("transactions")
+}
+
+// ============================================
+// AUDIT LOG MODEL
+// ============================================
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  
+  // Actor (who performed the action)
+  actorUserId String?
+  actor       User?       @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  
+  // What was affected
+  entity      String      // e.g., "User", "Wallet", "Transaction"
+  entityId    String      // ID of the affected entity
+  action      AuditAction
+  
+  // Change details
+  changes     Json?       // JSON diff of old vs new values
+  
+  // Request context
+  ip          String?
+  userAgent   String?
+  
+  // Timestamp
+  createdAt   DateTime    @default(now())
+
+  @@index([actorUserId])
+  @@index([entity, entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================
+// REFRESH TOKEN MODEL
+// ============================================
+
+model RefreshToken {
+  id                String    @id @default(uuid())
+  
+  // Owner
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Token details (store hash, not plaintext)
+  tokenHash         String    @unique
+  
+  // Expiration
+  expiresAt         DateTime
+  
+  // Revocation status
+  revoked           Boolean   @default(false)
+  revokedAt         DateTime?
+  revokedReason     String?
+  
+  // Token rotation tracking (for detecting token reuse attacks)
+  replacedByTokenId String?   @unique
+  replacedByToken   RefreshToken? @relation("TokenRotation", fields: [replacedByTokenId], references: [id])
+  previousToken     RefreshToken? @relation("TokenRotation")
+  
+  // Request context at creation
+  ip                String?
+  userAgent         String?
+  
+  // Timestamps
+  createdAt         DateTime  @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
 }
