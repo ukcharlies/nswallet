@@ -21,8 +21,8 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { FundWalletDto } from './dto/fund-wallet.dto';
 import { WithdrawWalletDto } from './dto/withdraw-wallet.dto';
-import type { User } from '../../generated/prisma';
-import { TransactionType } from '../../generated/prisma';
+import type { User } from '@prisma/client';
+import { TransactionType } from '@prisma/client';
 
 /**
  * WalletsController - Wallet management endpoints

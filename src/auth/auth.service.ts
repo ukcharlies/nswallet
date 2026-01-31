@@ -9,7 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { AuditService } from '../audit/audit.service';
-import { User, RefreshToken } from '../../generated/prisma';
+import { User, RefreshToken } from '@prisma/client';
 import {
   verifyPassword,
   validatePasswordPolicy,

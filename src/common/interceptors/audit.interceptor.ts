@@ -8,7 +8,7 @@ import {
 import { Observable, tap } from 'rxjs';
 import { Request } from 'express';
 import { AuditService } from '../../audit/audit.service';
-import { AuditAction } from '../../../generated/prisma';
+import { AuditAction } from '@prisma/client';
 
 /**
  * Metadata key for marking methods that should be audited

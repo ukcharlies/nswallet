@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { User, Role, Prisma } from '../../generated/prisma';
+import { User, Role, Prisma } from '@prisma/client';
 import { hashPassword } from '../common/utils/password.utils';
 
 /**

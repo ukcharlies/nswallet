@@ -13,12 +13,11 @@ import {
   TransactionType,
   Prisma,
   AuditAction,
-} from '../../generated/prisma';
+} from '@prisma/client';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { FundWalletDto } from './dto/fund-wallet.dto';
 import { WithdrawWalletDto } from './dto/withdraw-wallet.dto';
 import { generateTransactionReference } from '../common/utils/crypto.utils';
-import { Decimal } from '@prisma/client/runtime/library';
 
 /**
  * WalletsService - Core wallet operations with banking-grade concurrency
@@ -135,9 +134,12 @@ export class WalletsService {
           throw new BadRequestException('Wallet has been deleted');
         }
 
-        const amount = new Decimal(dto.amount);
-        const balanceBefore = wallet.balance;
-        const balanceAfter = balanceBefore.plus(amount);
+        const amount = parseFloat(dto.amount.toString());
+        const balanceBefore =
+          typeof wallet.balance === 'number'
+            ? wallet.balance
+            : parseFloat(wallet.balance.toString());
+        const balanceAfter = balanceBefore + amount;
 
         // Update with optimistic locking
         // This will fail if another transaction modified the wallet
@@ -231,12 +233,15 @@ export class WalletsService {
           throw new BadRequestException('Wallet has been deleted');
         }
 
-        const amount = new Decimal(dto.amount);
-        const balanceBefore = wallet.balance;
-        const balanceAfter = balanceBefore.minus(amount);
+        const amount = parseFloat(dto.amount.toString());
+        const balanceBefore =
+          typeof wallet.balance === 'number'
+            ? wallet.balance
+            : parseFloat(wallet.balance.toString());
+        const balanceAfter = balanceBefore - amount;
 
         // Insufficient funds check
-        if (balanceAfter.lessThan(0)) {
+        if (balanceAfter < 0) {
           throw new BadRequestException(
             `Insufficient funds. Available balance: ${balanceBefore.toString()} ${wallet.currency}`,
           );
@@ -326,9 +331,12 @@ export class WalletsService {
         throw new NotFoundException('Wallet not found');
       }
 
-      const amount = new Decimal(dto.amount);
-      const balanceBefore = new Decimal(wallet.balance.toString());
-      const balanceAfter = balanceBefore.plus(amount);
+      const amount = parseFloat(dto.amount.toString());
+      const balanceBefore =
+        typeof wallet.balance === 'number'
+          ? wallet.balance
+          : parseFloat(wallet.balance.toString());
+      const balanceAfter = balanceBefore + amount;
 
       // Update without version check (we have exclusive lock)
       await tx.wallet.update({
@@ -466,9 +474,13 @@ export class WalletsService {
         );
       }
 
-      const transferAmount = new Decimal(amount);
+      const transferAmount = parseFloat(amount.toString());
+      const fromBalance =
+        typeof fromWallet.balance === 'number'
+          ? fromWallet.balance
+          : parseFloat(fromWallet.balance.toString());
 
-      if (new Decimal(fromWallet.balance.toString()).lessThan(transferAmount)) {
+      if (fromBalance < transferAmount) {
         throw new BadRequestException('Insufficient funds');
       }
 
@@ -487,10 +499,8 @@ export class WalletsService {
         walletId: fromWalletId,
         type: TransactionType.DEBIT,
         amount: transferAmount,
-        balanceBefore: fromWallet.balance.toString(),
-        balanceAfter: new Decimal(fromWallet.balance.toString())
-          .minus(transferAmount)
-          .toString(),
+        balanceBefore: fromBalance,
+        balanceAfter: fromBalance - transferAmount,
         reference: `${reference}-OUT`,
         description: description || `Transfer to wallet ${toWalletId}`,
         metadata: { toWalletId },
@@ -498,6 +508,11 @@ export class WalletsService {
       });
 
       // Credit to destination
+      const toBalance =
+        typeof toWallet.balance === 'number'
+          ? toWallet.balance
+          : parseFloat(toWallet.balance.toString());
+
       await tx.wallet.update({
         where: { id: toWalletId },
         data: {
@@ -510,10 +525,8 @@ export class WalletsService {
         walletId: toWalletId,
         type: TransactionType.CREDIT,
         amount: transferAmount,
-        balanceBefore: toWallet.balance.toString(),
-        balanceAfter: new Decimal(toWallet.balance.toString())
-          .plus(transferAmount)
-          .toString(),
+        balanceBefore: toBalance,
+        balanceAfter: toBalance + transferAmount,
         reference: `${reference}-IN`,
         description: description || `Transfer from wallet ${fromWalletId}`,
         metadata: { fromWalletId },

@@ -19,7 +19,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import type { User } from '../../generated/prisma';
+import type { User } from '@prisma/client';
 
 /**
  * AuthController - Authentication endpoints
