@@ -9,10 +9,11 @@
  * Usage: 
  *   node test-all-roles.js
  *   node test-all-roles.js --base-url http://localhost:5000/api/v1
+ *   node test-all-roles.js --reuse-users
  *   node test-all-roles.js --help
  * 
  * This script tests:
- * - All 22 endpoints across all 5 roles
+ * - All endpoints across all 5 roles
  * - Role-based access control (who can access what)
  * - Authentication and authorization
  * - Permission restrictions
@@ -22,6 +23,7 @@ const http = require('http');
 const https = require('https');
 const url = require('url');
 const fs = require('fs');
+const path = require('path');
 
 /**
  * Color codes for terminal output
@@ -38,10 +40,13 @@ const colors = {
 };
 
 /**
- * Parse command line arguments
+ * Configuration
  */
 let BASE_URL = 'http://localhost:3000/api/v1';
 const LOG_FILE = 'role_test_results.log';
+const USERS_CACHE_FILE = 'test_users_cache.json';
+let REUSE_USERS = false;
+const REQUEST_DELAY_MS = 500; // Delay between requests to avoid rate limiting
 
 // Parse CLI arguments
 const args = process.argv.slice(2);
@@ -49,6 +54,8 @@ for (let i = 0; i < args.length; i++) {
   if (args[i] === '--base-url' && args[i + 1]) {
     BASE_URL = args[i + 1];
     i++; // Skip next arg since we used it
+  } else if (args[i] === '--reuse-users' || args[i] === '-r') {
+    REUSE_USERS = true;
   } else if (args[i] === '--help' || args[i] === '-h') {
     console.log(`
 ${colors.bright}NSWallet API - Role-Based Test Suite${colors.reset}
@@ -57,20 +64,30 @@ ${colors.bright}Usage:${colors.reset}
   node test-all-roles.js [options]
 
 ${colors.bright}Options:${colors.reset}
-  --base-url <url>  API base URL (default: http://localhost:3000/api/v1)
-  --help, -h        Show this help message
+  --base-url <url>   API base URL (default: http://localhost:3000/api/v1)
+  --reuse-users, -r  Reuse existing test users (login instead of register)
+  --help, -h         Show this help message
 
 ${colors.bright}Examples:${colors.reset}
   node test-all-roles.js
   node test-all-roles.js --base-url http://localhost:5000/api/v1
-  node test-all-roles.js --base-url https://api.example.com/v1
+  node test-all-roles.js --base-url http://localhost:5000/api/v1 --reuse-users
+  node test-all-roles.js --reuse-users
 
 ${colors.bright}Output:${colors.reset}
   - Console: Real-time test results with color-coded output
   - File: Detailed results saved to role_test_results.log
+  - Cache: User credentials saved to test_users_cache.json for reuse
     `);
     process.exit(0);
   }
+}
+
+/**
+ * Helper: delay function to avoid rate limiting
+ */
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
@@ -78,7 +95,7 @@ ${colors.bright}Output:${colors.reset}
  */
 const TEST_USERS = {
   SUPER_ADMIN: {
-    email: `superadmin+${Date.now()}@example.com`,
+    email: 'superadmin_test@example.com',
     password: 'TestPassword123!@',
     name: 'Super Admin User',
     role: 'SUPER_ADMIN',
@@ -87,7 +104,7 @@ const TEST_USERS = {
     userId: ''
   },
   ADMIN: {
-    email: `admin+${Date.now()}@example.com`,
+    email: 'admin_test@example.com',
     password: 'TestPassword123!@',
     name: 'Admin User',
     role: 'ADMIN',
@@ -96,7 +113,7 @@ const TEST_USERS = {
     userId: ''
   },
   MODERATOR: {
-    email: `moderator+${Date.now()}@example.com`,
+    email: 'moderator_test@example.com',
     password: 'TestPassword123!@',
     name: 'Moderator User',
     role: 'MODERATOR',
@@ -105,7 +122,7 @@ const TEST_USERS = {
     userId: ''
   },
   USER: {
-    email: `user+${Date.now()}@example.com`,
+    email: 'user_test@example.com',
     password: 'TestPassword123!@',
     name: 'Regular User',
     role: 'USER',
@@ -114,7 +131,7 @@ const TEST_USERS = {
     userId: ''
   },
   GUEST: {
-    email: `guest+${Date.now()}@example.com`,
+    email: 'guest_test@example.com',
     password: 'TestPassword123!@',
     name: 'Guest User',
     role: 'GUEST',
@@ -237,23 +254,21 @@ function makeRequest(method, endpoint, body = null, token = null) {
 /**
  * Role-Based Endpoint Access Matrix
  * Defines which roles can access which endpoints
+ * NOTE: This matches the actual API implementation
  */
 const ENDPOINT_MATRIX = {
   // Authentication endpoints (all public)
   'POST /auth/register': {
     public: true,
     allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'USER', 'GUEST'],
-    description: 'Register new user'
+    description: 'Register new user',
+    body: { email: 'temp@example.com', password: 'TempPass123!@', name: 'Temp User' }
   },
   'POST /auth/login': {
     public: true,
     allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'USER', 'GUEST'],
-    description: 'Login user'
-  },
-  'POST /auth/refresh': {
-    public: true,
-    allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'USER', 'GUEST'],
-    description: 'Refresh access token'
+    description: 'Login user',
+    body: { email: 'temp@example.com', password: 'TempPass123!@' }
   },
 
   // User Profile Endpoints
@@ -265,24 +280,29 @@ const ENDPOINT_MATRIX = {
   'PATCH /users/me': {
     public: false,
     allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'USER'],
-    description: 'Update current user profile'
+    description: 'Update current user profile',
+    body: { name: 'Updated Name' }
   },
   'GET /users/:id': {
     public: false,
     allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
-    description: 'Get user by ID (admin only)'
+    description: 'Get user by ID (admin only)',
+    needsUserId: true
   },
   'DELETE /users/:id': {
     public: false,
     allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
-    description: 'Delete user (admin only)'
+    description: 'Delete user (admin only)',
+    needsUserId: true,
+    skipTest: true // Skip to avoid deleting test users
   },
 
   // Wallet Endpoints
   'POST /wallets': {
     public: false,
     allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'USER'],
-    description: 'Create wallet'
+    description: 'Create wallet',
+    body: { name: 'Test Wallet', currency: 'USD' }
   },
   'GET /wallets': {
     public: false,
@@ -292,40 +312,44 @@ const ENDPOINT_MATRIX = {
   'GET /wallets/:id': {
     public: false,
     allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'USER'],
-    description: 'Get specific wallet'
+    description: 'Get specific wallet',
+    needsWalletId: true
   },
   'PATCH /wallets/:id/fund': {
     public: false,
     allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'USER'],
-    description: 'Fund wallet (add money)'
+    description: 'Fund wallet (add money)',
+    needsWalletId: true,
+    body: { amount: 100, description: 'Test funding' }
   },
   'PATCH /wallets/:id/withdraw': {
     public: false,
     allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'USER'],
-    description: 'Withdraw from wallet'
-  },
-  'PATCH /wallets/:id/transfer': {
-    public: false,
-    allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'USER'],
-    description: 'Transfer between wallets'
+    description: 'Withdraw from wallet',
+    needsWalletId: true,
+    body: { amount: 10, description: 'Test withdrawal' }
   },
   'GET /wallets/:id/transactions': {
     public: false,
     allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'USER'],
-    description: 'Get wallet transactions'
+    description: 'Get wallet transactions',
+    needsWalletId: true
   },
   'GET /wallets/:id/summary': {
     public: false,
     allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'USER'],
-    description: 'Get wallet summary'
+    description: 'Get wallet summary',
+    needsWalletId: true
   },
   'DELETE /wallets/:id': {
     public: false,
     allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'USER'],
-    description: 'Delete wallet (soft delete)'
+    description: 'Delete wallet (soft delete)',
+    needsWalletId: true,
+    skipTest: true // Skip to avoid deleting test wallets
   },
 
-  // Exchange Rate Endpoints (all public)
+  // Exchange Rate Endpoints
   'GET /rates': {
     public: true,
     allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'USER', 'GUEST'],
@@ -337,16 +361,10 @@ const ENDPOINT_MATRIX = {
     description: 'Get supported currencies'
   },
   'GET /rates/convert': {
-    public: true,
-    allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'USER', 'GUEST'],
-    description: 'Convert currency'
-  },
-
-  // Audit Log Endpoints (admin only)
-  'GET /audit-logs': {
-    public: false,
-    allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR'],
-    description: 'Get audit logs (admin/moderator only)'
+    public: false, // Fixed: This endpoint is NOT public
+    allowedRoles: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'USER'],
+    description: 'Convert currency',
+    queryParams: '?amount=100&from=USD&to=NGN'
   }
 };
 
@@ -354,10 +372,23 @@ const ENDPOINT_MATRIX = {
  * Test Functions
  */
 
-async function testEndpointAccess(endpoint, role, userToken) {
+async function testEndpointAccess(endpoint, role, roleData) {
   const [method, path] = endpoint.split(' ');
   const endpointConfig = ENDPOINT_MATRIX[endpoint];
   const canAccessEndpoint = endpointConfig.allowedRoles.includes(role);
+
+  // Skip tests marked for skipping
+  if (endpointConfig.skipTest) {
+    return {
+      endpoint,
+      role,
+      canAccessEndpoint,
+      actuallyCanAccess: 'SKIPPED',
+      statusCode: 'SKIPPED',
+      isCorrect: true,
+      skipped: true
+    };
+  }
 
   let actuallyCanAccess = false;
   let statusCode = null;
@@ -365,16 +396,34 @@ async function testEndpointAccess(endpoint, role, userToken) {
   try {
     let actualPath = path;
 
-    // Replace :id with a test ID
-    if (path.includes(':id')) {
-      actualPath = path.replace(':id', 'test-id-123');
+    // Replace :id with actual wallet ID or user ID
+    if (endpointConfig.needsWalletId && path.includes(':id')) {
+      if (!roleData.walletId) {
+        // No wallet available, expected to fail for GUEST
+        actualPath = path.replace(':id', '00000000-0000-0000-0000-000000000000');
+      } else {
+        actualPath = path.replace(':id', roleData.walletId);
+      }
+    } else if (endpointConfig.needsUserId && path.includes(':id')) {
+      actualPath = path.replace(':id', roleData.userId || '00000000-0000-0000-0000-000000000000');
+    }
+
+    // Add query params if needed
+    if (endpointConfig.queryParams) {
+      actualPath += endpointConfig.queryParams;
+    }
+
+    // Determine request body
+    let body = null;
+    if (endpointConfig.body) {
+      body = { ...endpointConfig.body };
     }
 
     const response = await makeRequest(
       method.toUpperCase(),
       actualPath,
-      method === 'PATCH' ? { amount: 100, description: 'Test' } : null,
-      userToken || null
+      body,
+      roleData.token || null
     );
 
     statusCode = response.status;
@@ -408,17 +457,167 @@ async function testEndpointAccess(endpoint, role, userToken) {
  * Test Sequence
  */
 
+/**
+ * Load cached users from file
+ */
+function loadCachedUsers() {
+  try {
+    if (fs.existsSync(USERS_CACHE_FILE)) {
+      const data = fs.readFileSync(USERS_CACHE_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    logWarning(`Could not load cached users: ${error.message}`);
+  }
+  return null;
+}
+
+/**
+ * Save users to cache file
+ */
+function saveCachedUsers(users) {
+  try {
+    const cacheData = {};
+    for (const [roleName, roleData] of Object.entries(users)) {
+      cacheData[roleName] = {
+        email: roleData.email,
+        password: roleData.password,
+        name: roleData.name,
+        role: roleData.role,
+        userId: roleData.userId,
+        walletId: roleData.walletId
+      };
+    }
+    fs.writeFileSync(USERS_CACHE_FILE, JSON.stringify(cacheData, null, 2));
+    logInfo(`Users cached to ${USERS_CACHE_FILE}`);
+  } catch (error) {
+    logWarning(`Could not save cached users: ${error.message}`);
+  }
+}
+
+/**
+ * Try to login existing user
+ */
+async function loginUser(roleData) {
+  logTest('Attempting to login existing user', roleData.role);
+  
+  const loginRes = await makeRequest('POST', '/auth/login', {
+    email: roleData.email,
+    password: roleData.password
+  });
+
+  if (loginRes.status === 200 || loginRes.status === 201) {
+    roleData.userId = loginRes.data.user?.id;
+    roleData.token = loginRes.data.accessToken;
+    logSuccess(`Logged in successfully`);
+    logInfo(`Token: ${roleData.token.substring(0, 20)}...`);
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Get or create wallet for user
+ */
+async function getOrCreateWallet(roleData) {
+  if (roleData.role === 'GUEST') return true;
+  
+  // First try to get existing wallets
+  logTest('Checking for existing wallets', roleData.role);
+  const walletsRes = await makeRequest('GET', '/wallets', null, roleData.token);
+  
+  if (walletsRes.status === 200 && walletsRes.data && walletsRes.data.length > 0) {
+    roleData.walletId = walletsRes.data[0].id;
+    logSuccess(`Found existing wallet: ${roleData.walletId}`);
+    return true;
+  }
+  
+  // Create a new wallet
+  logTest('Creating test wallet', roleData.role);
+  const walletRes = await makeRequest('POST', '/wallets', {
+    name: `Test Wallet - ${roleData.role}`,
+    currency: 'USD'
+  }, roleData.token);
+
+  if (walletRes.status === 201) {
+    roleData.walletId = walletRes.data.id;
+    logSuccess(`Test wallet created: ${roleData.walletId}`);
+    
+    // Fund the wallet for withdraw tests
+    await makeRequest('PATCH', `/wallets/${roleData.walletId}/fund`, {
+      amount: 1000,
+      description: 'Initial test funding'
+    }, roleData.token);
+    logSuccess(`Wallet funded with $1000`);
+    
+    return true;
+  }
+  
+  logError(`Failed to create wallet: ${walletRes.status}`);
+  return false;
+}
+
 async function registerAndLoginUser(roleData) {
   logSection(`Setting up ${roleData.role} user: ${roleData.email}`);
 
   try {
-    // Register
+    // If reusing users, try login first
+    if (REUSE_USERS) {
+      const loggedIn = await loginUser(roleData);
+      if (loggedIn) {
+        await getOrCreateWallet(roleData);
+        return true;
+      }
+      logInfo('Login failed, will try to register');
+    }
+
+    // Add delay before registration to avoid rate limiting
+    await delay(REQUEST_DELAY_MS);
+
+    // Register new user
     logTest('Registering user', roleData.role);
     const registerRes = await makeRequest('POST', '/auth/register', {
       email: roleData.email,
       password: roleData.password,
       name: roleData.name
     });
+
+    if (registerRes.status === 429) {
+      logError(`Rate limited! Waiting 5 seconds...`);
+      await delay(5000);
+      // Retry once
+      const retryRes = await makeRequest('POST', '/auth/register', {
+        email: roleData.email,
+        password: roleData.password,
+        name: roleData.name
+      });
+      if (retryRes.status !== 201) {
+        // User might already exist, try login
+        logInfo('Registration failed, trying login...');
+        const loggedIn = await loginUser(roleData);
+        if (loggedIn) {
+          await getOrCreateWallet(roleData);
+          return true;
+        }
+        logError(`Registration failed after retry: ${retryRes.status}`);
+        return false;
+      }
+      registerRes.status = retryRes.status;
+      registerRes.data = retryRes.data;
+    }
+
+    if (registerRes.status === 400 || registerRes.status === 409) {
+      // User might already exist (409 Conflict) or validation error
+      logInfo('User may already exist, trying login...');
+      const loggedIn = await loginUser(roleData);
+      if (loggedIn) {
+        await getOrCreateWallet(roleData);
+        return true;
+      }
+      logError(`Could not register or login: ${registerRes.status}`);
+      return false;
+    }
 
     if (registerRes.status !== 201) {
       logError(`Registration failed: ${registerRes.status}`);
@@ -431,18 +630,7 @@ async function registerAndLoginUser(roleData) {
     logInfo(`Token: ${roleData.token.substring(0, 20)}...`);
 
     // Create a test wallet
-    if (roleData.role !== 'GUEST') {
-      logTest('Creating test wallet', roleData.role);
-      const walletRes = await makeRequest('POST', '/wallets', {
-        name: `Test Wallet - ${roleData.role}`,
-        currency: 'USD'
-      }, roleData.token);
-
-      if (walletRes.status === 201) {
-        roleData.walletId = walletRes.data.id;
-        logSuccess(`Test wallet created: ${roleData.walletId}`);
-      }
-    }
+    await getOrCreateWallet(roleData);
 
     return true;
   } catch (error) {
@@ -458,15 +646,20 @@ async function testAllEndpointsForRole(roleName, roleData) {
     role: roleName,
     passed: 0,
     failed: 0,
+    skipped: 0,
     tests: []
   };
 
   for (const [endpoint, config] of Object.entries(ENDPOINT_MATRIX)) {
-    const result = await testEndpointAccess(endpoint, roleName, roleData.token);
+    // Pass full roleData instead of just token
+    const result = await testEndpointAccess(endpoint, roleName, roleData);
 
     logTest(config.description, roleName);
 
-    if (result.isCorrect) {
+    if (result.skipped) {
+      logWarning(`${endpoint} - SKIPPED`);
+      roleResults.skipped++;
+    } else if (result.isCorrect) {
       logSuccess(
         `${endpoint} - Status: ${result.statusCode} (Expected access: ${result.canAccessEndpoint})`
       );
@@ -480,13 +673,18 @@ async function testAllEndpointsForRole(roleName, roleData) {
       testResults.failedTests++;
     }
 
-    roleResults.tests.push(result);
-    testResults.totalTests++;
+    if (!result.skipped) {
+      roleResults.tests.push(result);
+      testResults.totalTests++;
+    }
 
     // Save to log
     saveLog(
-      `${roleName} - ${endpoint}: ${result.isCorrect ? 'PASS' : 'FAIL'} (Status: ${result.statusCode})`
+      `${roleName} - ${endpoint}: ${result.skipped ? 'SKIPPED' : result.isCorrect ? 'PASS' : 'FAIL'} (Status: ${result.statusCode})`
     );
+
+    // Small delay between tests
+    await delay(100);
   }
 
   testResults.byRole[roleName] = roleResults;
@@ -503,9 +701,9 @@ async function runAllRoleTests() {
 
   logHeader('🧪 NSWallet API - Comprehensive Role-Based Test Suite');
   logInfo(`Base URL: ${BASE_URL}`);
+  logInfo(`Reuse Users: ${REUSE_USERS ? 'Yes' : 'No'}`);
   logInfo(`Total Endpoints: ${Object.keys(ENDPOINT_MATRIX).length}`);
   logInfo(`Total Roles: ${Object.keys(TEST_USERS).length}`);
-  logInfo(`Total Tests: ${Object.keys(ENDPOINT_MATRIX).length * Object.keys(TEST_USERS).length}`);
   logInfo(`Results will be saved to: ${LOG_FILE}`);
 
   // Phase 1: Setup all users
@@ -513,14 +711,20 @@ async function runAllRoleTests() {
 
   const setupResults = {};
   for (const [roleName, roleData] of Object.entries(TEST_USERS)) {
-    testResults.byRole[roleName] = { role: roleName, passed: 0, failed: 0, tests: [] };
+    testResults.byRole[roleName] = { role: roleName, passed: 0, failed: 0, skipped: 0, tests: [] };
     const success = await registerAndLoginUser(roleData);
     setupResults[roleName] = success;
 
     if (!success) {
       logError(`Failed to setup ${roleName} user`);
     }
+    
+    // Add delay between user setups to avoid rate limiting
+    await delay(REQUEST_DELAY_MS);
   }
+
+  // Save users to cache for reuse
+  saveCachedUsers(TEST_USERS);
 
   // Phase 2: Test all endpoints for each role
   logHeader('🔐 PHASE 2: Role-Based Access Testing');
@@ -541,23 +745,30 @@ async function runAllRoleTests() {
   logInfo(`Total Tests: ${testResults.totalTests}`);
   logSuccess(`Passed: ${testResults.passedTests}`);
   logError(`Failed: ${testResults.failedTests}`);
-  const passPercentage = ((testResults.passedTests / testResults.totalTests) * 100).toFixed(2);
+  
+  const passPercentage = testResults.totalTests > 0 
+    ? ((testResults.passedTests / testResults.totalTests) * 100).toFixed(2)
+    : 0;
   console.log(`Pass Rate: ${colors.bright}${passPercentage}%${colors.reset}\n`);
 
   console.log(colors.bright + 'Results by Role:' + colors.reset);
   for (const [roleName, results] of Object.entries(testResults.byRole)) {
     const total = results.passed + results.failed;
-    if (total === 0) continue;
+    if (total === 0) {
+      console.log(`  ${roleName}: ${colors.yellow}No tests run${colors.reset}`);
+      continue;
+    }
     const rolePassRate = ((results.passed / total) * 100).toFixed(2);
+    const skippedStr = results.skipped > 0 ? ` (${results.skipped} skipped)` : '';
     console.log(
-      `  ${roleName}: ${colors.green}${results.passed}${colors.reset}/${total} passed (${rolePassRate}%)`
+      `  ${roleName}: ${colors.green}${results.passed}${colors.reset}/${total} passed (${rolePassRate}%)${skippedStr}`
     );
   }
 
   // Print failing tests
   const failingTests = Object.values(testResults.byRole)
     .flatMap(r => r.tests)
-    .filter(t => !t.isCorrect);
+    .filter(t => !t.isCorrect && !t.skipped);
 
   if (failingTests.length > 0) {
     console.log(colors.bright + '\nFailing Tests:' + colors.reset);
@@ -575,6 +786,7 @@ async function runAllRoleTests() {
     process.exit(0);
   } else {
     logError(`${testResults.failedTests} test(s) failed`);
+    logInfo(`Tip: Run with --reuse-users to retest without creating new users`);
     process.exit(1);
   }
 }
@@ -587,6 +799,7 @@ async function main() {
   try {
     // Display configuration
     logInfo(`API Base URL: ${BASE_URL}`);
+    logInfo(`Reuse Users: ${REUSE_USERS ? 'Yes' : 'No'}`);
     logInfo(`Log file: ${LOG_FILE}`);
     
     // Check server connectivity

@@ -1,0 +1,42 @@
+{
+  "SUPER_ADMIN": {
+    "email": "superadmin_test@example.com",
+    "password": "TestPassword123!@",
+    "name": "Super Admin User",
+    "role": "SUPER_ADMIN",
+    "userId": "77e4d0f1-5c93-42b0-bd32-403b0db35954",
+    "walletId": "b451df51-09d5-4700-a9c2-5125e12cfd63"
+  },
+  "ADMIN": {
+    "email": "admin_test@example.com",
+    "password": "TestPassword123!@",
+    "name": "Admin User",
+    "role": "ADMIN",
+    "userId": "a21a40d8-0246-4b9b-b543-2c7f825cfd39",
+    "walletId": "9d1a71e3-7124-48ec-b9a5-bb7577b13214"
+  },
+  "MODERATOR": {
+    "email": "moderator_test@example.com",
+    "password": "TestPassword123!@",
+    "name": "Moderator User",
+    "role": "MODERATOR",
+    "userId": "cfb68dc6-c997-49bc-9e05-07a7837614bd",
+    "walletId": "90fa060c-8b40-4014-9d89-f69be5d66068"
+  },
+  "USER": {
+    "email": "user_test@example.com",
+    "password": "TestPassword123!@",
+    "name": "Regular User",
+    "role": "USER",
+    "userId": "2be5d531-c64f-4ac1-92fe-42262a18c147",
+    "walletId": "611491ea-3e36-4d68-b6d1-9ba98cd344f6"
+  },
+  "GUEST": {
+    "email": "guest_test@example.com",
+    "password": "TestPassword123!@",
+    "name": "Guest User",
+    "role": "GUEST",
+    "userId": "43176aa5-a3ef-479e-bd50-be137052a8e4",
+    "walletId": ""
+  }
+}
