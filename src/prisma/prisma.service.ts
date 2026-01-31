@@ -49,8 +49,8 @@ export class PrismaService
     await this.$connect();
     this.logger.log('Database connected successfully');
 
-    // Add soft delete middleware
-    this.addSoftDeleteMiddleware();
+    // Note: Soft delete middleware is not available in Prisma 6
+    // Soft deletes will be handled at the application level in services
   }
 
   async onModuleDestroy() {
@@ -58,60 +58,6 @@ export class PrismaService
     this.logger.log('Database disconnected');
   }
 
-  /**
-   * Middleware to automatically filter soft-deleted records
-   * and convert delete operations to soft deletes
-   */
-  private addSoftDeleteMiddleware() {
-    // Models that support soft delete
-    const softDeleteModels = ['User', 'Wallet'];
-
-    // Filter out soft-deleted records on find operations
-    (this as any).$use(async (params, next) => {
-      if (softDeleteModels.includes(params.model || '')) {
-        if (params.action === 'findUnique' || params.action === 'findFirst') {
-          // Change to findFirst to add deletedAt filter
-          params.action = 'findFirst';
-          params.args.where = {
-            ...params.args.where,
-            deletedAt: null,
-          };
-        }
-
-        if (params.action === 'findMany') {
-          // Add deletedAt filter if not explicitly querying deleted records
-          if (!params.args) {
-            params.args = { where: {} };
-          }
-          if (!params.args.where) {
-            params.args.where = {};
-          }
-          if (params.args.where.deletedAt === undefined) {
-            params.args.where.deletedAt = null;
-          }
-        }
-      }
-      return next(params);
-    });
-
-    // Convert delete to soft delete
-    (this as any).$use(async (params, next) => {
-      if (softDeleteModels.includes(params.model || '')) {
-        if (params.action === 'delete') {
-          params.action = 'update';
-          params.args.data = { deletedAt: new Date() };
-        }
-        if (params.action === 'deleteMany') {
-          params.action = 'updateMany';
-          if (!params.args) {
-            params.args = {};
-          }
-          params.args.data = { deletedAt: new Date() };
-        }
-      }
-      return next(params);
-    });
-  }
 
   /**
    * Clean up database for testing
