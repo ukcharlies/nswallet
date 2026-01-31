@@ -224,6 +224,7 @@ export class AuthController {
     const isProduction =
       this.configService.get<string>('NODE_ENV') === 'production';
     const domain = this.configService.get<string>('COOKIE_DOMAIN', 'localhost');
+    const apiPrefix = this.configService.get<string>('API_PREFIX', 'api/v1');
     const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
     res.cookie('refreshToken', token, {
@@ -231,7 +232,7 @@ export class AuthController {
       secure: isProduction, // HTTPS only in production
       sameSite: isProduction ? 'strict' : 'lax', // CSRF protection
       domain: isProduction ? domain : undefined,
-      path: '/auth', // Only sent to auth endpoints
+      path: `/${apiPrefix}/auth`, // Match API prefix: /api/v1/auth
       maxAge,
     });
   }
@@ -240,9 +241,11 @@ export class AuthController {
    * Clear refresh token cookie
    */
   private clearRefreshTokenCookie(res: Response): void {
+    const apiPrefix = this.configService.get<string>('API_PREFIX', 'api/v1');
+
     res.clearCookie('refreshToken', {
       httpOnly: true,
-      path: '/auth',
+      path: `/${apiPrefix}/auth`, // Must match setRefreshTokenCookie path
     });
   }
 
