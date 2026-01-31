@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/package.json",
   "name": "nswallet",
   "version": "0.0.1",
   "description": "A banking-grade secure wallet system built with NestJS, TypeScript, and Prisma",
@@ -36,7 +37,7 @@
     "@nestjs/passport": "^11.0.0",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/throttler": "^6.0.0",
-    "@prisma/client": "^7.3.0",
+    "@prisma/client": "^6.6.0",
     "argon2": "^0.40.0",
     "axios": "^1.13.4",
     "cache-manager": "^6.0.0",
@@ -71,7 +72,7 @@
     "globals": "^16.0.0",
     "jest": "^30.0.0",
     "prettier": "^3.4.2",
-    "prisma": "^7.3.0",
+    "prisma": "^6.6.0",
     "dotenv": "^16.4.5",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
