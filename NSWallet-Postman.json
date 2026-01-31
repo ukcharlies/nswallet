@@ -1,0 +1,398 @@
+{
+  "info": {
+    "name": "NSWallet API",
+    "description": "Complete API testing collection for NSWallet backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"SecurePass123!@\",\n  \"name\": \"Test User\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"SecurePass123!@\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "refresh"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wallets",
+      "item": [
+        {
+          "name": "Create Wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Savings\",\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/wallets",
+              "host": ["{{base_url}}"],
+              "path": ["wallets"]
+            }
+          }
+        },
+        {
+          "name": "Get All Wallets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/wallets",
+              "host": ["{{base_url}}"],
+              "path": ["wallets"]
+            }
+          }
+        },
+        {
+          "name": "Get Wallet",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/wallets/{{wallet_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["wallets", "{{wallet_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Fund Wallet",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000.50,\n  \"description\": \"Initial deposit\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/wallets/{{wallet_id}}/fund",
+              "host": ["{{base_url}}"],
+              "path": ["wallets", "{{wallet_id}}", "fund"]
+            }
+          }
+        },
+        {
+          "name": "Withdraw from Wallet",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100.00,\n  \"description\": \"Cash withdrawal\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/wallets/{{wallet_id}}/withdraw",
+              "host": ["{{base_url}}"],
+              "path": ["wallets", "{{wallet_id}}", "withdraw"]
+            }
+          }
+        },
+        {
+          "name": "Get Transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/wallets/{{wallet_id}}/transactions?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["wallets", "{{wallet_id}}", "transactions"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "type",
+                  "value": "CREDIT",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Wallet Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/wallets/{{wallet_id}}/summary",
+              "host": ["{{base_url}}"],
+              "path": ["wallets", "{{wallet_id}}", "summary"]
+            }
+          }
+        },
+        {
+          "name": "Delete Wallet",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/wallets/{{wallet_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["wallets", "{{wallet_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Exchange Rates",
+      "item": [
+        {
+          "name": "Get Rates",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/rates?base=USD",
+              "host": ["{{base_url}}"],
+              "path": ["rates"],
+              "query": [
+                {
+                  "key": "base",
+                  "value": "USD"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Supported Currencies",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/rates/currencies",
+              "host": ["{{base_url}}"],
+              "path": ["rates", "currencies"]
+            }
+          }
+        },
+        {
+          "name": "Convert Currency",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rates/convert?amount=100&from=USD&to=NGN",
+              "host": ["{{base_url}}"],
+              "path": ["rates", "convert"],
+              "query": [
+                {
+                  "key": "amount",
+                  "value": "100"
+                },
+                {
+                  "key": "from",
+                  "value": "USD"
+                },
+                {
+                  "key": "to",
+                  "value": "NGN"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "wallet_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
