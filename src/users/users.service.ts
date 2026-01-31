@@ -7,6 +7,11 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { User, Role, Prisma } from '@prisma/client';
 import { hashPassword } from '../common/utils/password.utils';
+import {
+  excludeSoftDeleted,
+  softDeleteData,
+  restoreData,
+} from '../common/utils/soft-delete.utils';
 
 /**
  * UsersService - User CRUD and authentication helpers
@@ -75,8 +80,11 @@ export class UsersService {
    * Find user by ID
    */
   async findById(id: string): Promise<User | null> {
-    return this.prisma.user.findUnique({
-      where: { id },
+    return this.prisma.user.findFirst({
+      where: {
+        id,
+        ...excludeSoftDeleted(),
+      },
     });
   }
 
@@ -95,8 +103,11 @@ export class UsersService {
    * Find user by email
    */
   async findByEmail(email: string): Promise<User | null> {
-    return this.prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+    return this.prisma.user.findFirst({
+      where: {
+        email: email.toLowerCase(),
+        ...excludeSoftDeleted(),
+      },
     });
   }
 
@@ -104,8 +115,11 @@ export class UsersService {
    * Find user by Google ID
    */
   async findByGoogleId(googleId: string): Promise<User | null> {
-    return this.prisma.user.findUnique({
-      where: { googleId },
+    return this.prisma.user.findFirst({
+      where: {
+        googleId,
+        ...excludeSoftDeleted(),
+      },
     });
   }
 
@@ -243,8 +257,9 @@ export class UsersService {
    * Soft delete user
    */
   async delete(id: string): Promise<void> {
-    await this.prisma.user.delete({
+    await this.prisma.user.update({
       where: { id },
+      data: softDeleteData(),
     });
   }
 

@@ -18,6 +18,10 @@ import { CreateWalletDto } from './dto/create-wallet.dto';
 import { FundWalletDto } from './dto/fund-wallet.dto';
 import { WithdrawWalletDto } from './dto/withdraw-wallet.dto';
 import { generateTransactionReference } from '../common/utils/crypto.utils';
+import {
+  excludeSoftDeleted,
+  softDeleteData,
+} from '../common/utils/soft-delete.utils';
 
 /**
  * WalletsService - Core wallet operations with banking-grade concurrency
@@ -78,8 +82,11 @@ export class WalletsService {
    * Get wallet by ID
    */
   async findById(id: string): Promise<Wallet | null> {
-    return this.prisma.wallet.findUnique({
-      where: { id },
+    return this.prisma.wallet.findFirst({
+      where: {
+        id,
+        ...excludeSoftDeleted(),
+      },
     });
   }
 
@@ -99,7 +106,10 @@ export class WalletsService {
    */
   async findByUserId(userId: string): Promise<Wallet[]> {
     return this.prisma.wallet.findMany({
-      where: { userId },
+      where: {
+        userId,
+        ...excludeSoftDeleted(),
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -381,9 +391,10 @@ export class WalletsService {
       throw new NotFoundException('Wallet not found');
     }
 
-    // Soft delete
-    await this.prisma.wallet.delete({
+    // Soft delete (update deletedAt instead of hard delete)
+    await this.prisma.wallet.update({
       where: { id },
+      data: softDeleteData(),
     });
 
     // Audit log
