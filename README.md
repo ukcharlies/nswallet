@@ -7,7 +7,6 @@ A banking-grade wallet system built with NestJS, TypeScript, Prisma, and Postgre
 ### 🔐 Authentication & Security
 
 - **Local authentication** (email/password with Argon2 hashing)
-- **Google OAuth 2.0** integration
 - **JWT access tokens** (short-lived, 15 minutes)
 - **Refresh tokens** (long-lived, stored in DB with rotation)
 - **Password policy enforcement** (min 12 chars, uppercase, lowercase, number, symbol)
